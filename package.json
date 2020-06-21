@@ -1,0 +1,19 @@
+{
+  "name": "TN-Twitter",
+  "version": "0.1.5",
+  "description": "@TankieNews account automated management for following and unfollowing users from our account.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "cryptodeal",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "lodash": "^4.17.15",
+    "mongoose": "^5.9.14",
+    "twitter": "^1.7.1",
+    "twitter-lite": "^0.14.0"
+  }
+}
