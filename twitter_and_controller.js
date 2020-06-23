@@ -52,64 +52,69 @@ var client = new Twitter({
     //getFriendData()
 
 ////check users following @TankieNews and push to the following array
-exports.addFriends = function(){
-    var params = {screen_name: 'TankieNews', stringify_ids: true};
-    client.get('friends/ids', params, function(err, response){
-        if(err) throw err;
-        for (var i = 0; i < response.ids.length; i++){
-            //following.push(response.ids[i]);
-            TwitterUser.addFriends(response.ids[i], function(err, user){
-                if (err) throw err;
-                console.log(`${user} updated in database.`);
-            })
+
+const getFollowerIDs = async (params, data) => {
+    return client.get('followers/ids', params)
+    .then(res => {
+        console.log(res)
+        data.push(res.ids);
+        if (res.next_cursor > 0) {
+            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
+            return getFollowerIDs(params, data);
         }
-        //console.log(following);
-    });
+        return data;
+    })
+}
+const getFriendIDs = async (params, data) => {
+    return client.get('friends/ids', params)
+    .then(res => {
+        data.push(res.ids);
+        if (res.next_cursor > 0) {
+            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
+            return getFriendIDs(params, data);
+        }
+        return data;
+    })
 }
 
-addFriends2 = function(){
-    var params = {screen_name: 'TankieNews', stringify_ids: true};
-    client.get('friends/ids', params)
-        .then(function (userIDs) {
-            TwitterUser.addFriendsPromise(userIDs.ids)
-            .then((results) => {
-                //console.log(results)
-                getUserData(results);
-            })
-        })
-        .catch(function (error) {
-            throw error;
-        })
+const cursorStoreFollowers = async (followers) => {
+    return Promise.all(followers.map(block => {
+        return TwitterUser.addFollowers(block);
+    }))
 }
-const getFollowerIDs = async () => {
-    var params = {screen_name: 'TankieNews', stringify_ids: true};
-    return client.get('followers/ids', params)
-    .then(userIDs => {
-        return userIDs
-    })
+
+const cursorStoreFriends = async (friends) => {
+    return Promise.all(friends.map(block => {
+        return TwitterUser.addFriends(block);
+    }))
 }
-const getFriendIDs = async () => {
-    var params = {screen_name: 'TankieNews', stringify_ids: true};
-    return client.get('friends/ids', params)
-    .then(userIDs => {
-        return userIDs
-    })
-}
+
 exports.addUsers = async function(){
-    getFollowerIDs()
-    .then(followerIDs => {
-        return TwitterUser.addFollowers(followerIDs.ids)
+    let params = {screen_name: 'TankieNews', stringify_ids: true};
+    getFollowerIDs(params, [])
+    .then(followers => {
+        console.log(`made it to cursorStoreFollowers call`)
+        return cursorStoreFollowers(followers)
     })
-    .then(updatedFollowers => {
-        //console.log(updatedFollowers)
-        return getFriendIDs()
+    .then(results => {
+        console.log(`made it to first getUserData call`)
+        return getUserData(results);
     })
-    .then(friendsIDs => {
-        //console.log(friendsIDs)
-        return TwitterUser.addFriends(friendsIDs.ids)
+    .then(() => {
+        console.log(`made it to getFriendsIDs call`)
+        let params = {screen_name: 'TankieNews', stringify_ids: true};
+        return getFriendIDs(params, [])
     })
-    .then(updatedFriends => {
-        console.log(updatedFriends)
+    .then(friends => {
+        console.log(`made it to cursorStoreFriends call`)
+        return cursorStoreFriends(friends)
+    })
+    .then(results => {
+        console.log(`made it to second getUserData call`)
+        return getUserData(results);
+    })
+    .then(() => {
+        console.log(`completed addUsers function`)
     })
     .catch(error => {
         throw error;
@@ -146,56 +151,21 @@ function totalUsers(){
     })
 }
 
-//get user info from all followers
-function getFollowerData(){
-    TwitterUser.getFollowers(function(err, followers){
-        if (err) throw err;
-        let followersChunk = _.chunk(followers, 100);
-        //console.log(followersChunk)
-        for (i=0; i<followersChunk.length; i++){
-            let users = followersChunk[i].map(follower => follower)
-            let userIDs = users.map(user => user.userID)
-            let params = {user_id: userIDs.join()};
-            client.post('users/lookup', params, function(err, response){
-                if(err) throw err;
-                //console.log(users)
-                TwitterUser.insertUserInfo(users, response, function(err, userDoc){
-                    if (err) throw err;
-                    console.log(userDoc)
-                })
-            });
-        }
+const userLookup = async (params) => {
+    return client.post('users/lookup', params).then(response => {
+        //console.log(result)
+        return TwitterUser.insertUserInfo(response).then(user => {
+            return user;
+        })
     })
 }
-
-exports.getFriendsData = function(friends){
-        let friendsChunk = _.chunk(friends, 100);
-        //console.log(followersChunk)
-        for (i=0; i<friendsChunk.length; i++){
-            let users = friendsChunk[i].map(friend => friend)
-            let userIDs = users.map(user => user.userID)
-            let params = {user_id: userIDs.join()};
-            client.post('users/lookup', params)
-            .then(function (response) {
-                TwitterUser.insertUserInfo(response)
-            })
-            .catch(function (error) {
-                throw error;
-            })
-        }
-}
 const getUserData = async (users) => {
-    let userChunks = _.chunk(users, 100);
+    let userChunks = _.chunk(users[0], 100);
     //console.log(userChunks)
     return Promise.all(userChunks.map(user => {
         let ids = user.map(user => user.userID)
         let params = {user_id: ids.join()};
         //console.log(params)
-        return client.post('users/lookup', params).then(response => {
-            //console.log(result)
-            return TwitterUser.insertUserInfo(response).then(user => {
-                return user;
-            })
-        })
+        return userLookup(params)
     }))
 }
