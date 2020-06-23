@@ -1,86 +1,79 @@
 const TwitterUser = require('../models/TwitterUsers');
+const Twitter = require('../twitter_and_controller');
 
 //adds userID to database for all users @TankieNews follows
 //updates existing userID's to include isFriend: true (and timestamp if needed)
-exports.addFriends = function (response, cb){
+exports.addFriendsPromise = async function(ids){
     let date = new Date();
-    TwitterUser.findOne({ userID: response }).then(user => {
-        //if (err) return cb(err);
-        if (!user){
-            let newUser = new TwitterUser ({
-                userID: response,
-                isFriend: true,
-                dateFriended: date
-            })
-            newUser.save(function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });
-        } else if(user.isFriend == false){
-            let updatedUser = {
-                userID: response,
-                isFriend: true,
-                dateFriended: date
+    return Promise.all(ids.map(id => {
+        return TwitterUser.findOne({userID: id}).exec().then(result => {
+            if(!result){
+                let newUser = new TwitterUser ({
+                    userID: id,
+                    isFriend: true,
+                    dateFriended: date
+                })
+                return newUser.save().then(user => {
+                    return user;
+                })
+            } else if(result.isFriend == false){
+                let updatedUser = {
+                    isFriend: true,
+                    dateFriended: date
+                }
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                    return user;
+                })
+            } else if(result.isFriend == true && !result.dateFriended){
+                let updatedUser = {
+                    isFriend: true,
+                    dateFriended: date
+                }
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                    return user;
+                })
+            } else {
+                return result;
             }
-            TwitterUser.findByIdAndUpdate({_id: user._id}, {$set: updatedUser}, function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });         
-        } else if(user.isFriend == true && !user.dateFriended){
-            let updatedUser = {
-                userID: response,
-                isFriend: true,
-                dateFriended: date
-            }
-            TwitterUser.findByIdAndUpdate({_id: user._id}, {$set: updatedUser}, function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });         
-        } else {
-            return cb(null, user);
-        }
-      })
+        })
+    }))
 }
-
 //adds userID to database for all users following @TankieNews
 //updates existing userID's to include isFollower: true (and timestamp if needed)
-exports.addFollowers = function (response, cb){
+exports.addFollowers = async function(ids){
     let date = new Date();
-    TwitterUser.findOne({ userID: response}).then(user => {
-        if (!user){
-            let newUser = new TwitterUser ({
-                userID: response,
-                isFollower: true,
-                dateFollowed: date
-            })
-            newUser.save(function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });
-        } else if(user.isFollower == false){
-            let updatedUser = {
-                userID: response,
-                isFollower: true,
-                dateFollowed: date
+    return Promise.all(ids.map(id => {
+        return TwitterUser.findOne({userID: id}).exec().then(result => {
+            if(!result){
+                let newUser = new TwitterUser ({
+                    userID: id,
+                    isFollower: true,
+                    dateFollowed: date
+                })
+                return newUser.save().then(user => {
+                    return user;
+                })
+            } else if(result.isFollower == false){
+                let updatedUser = {
+                    isFollower: true,
+                    dateFollowed: date
+                }
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                    return user;
+                })
+            } else if(result.isFollower == true && !result.dateFollowed){
+                let updatedUser = {
+                    isFollower: true,
+                    dateFollowed: date
+                }
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                    return user;
+                })
+            } else {
+                return result;
             }
-            TwitterUser.findByIdAndUpdate({_id: user._id}, {$set: updatedUser}, function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });        
-        } else if(user.isFollower == true && !user.dateFollowed){
-            let updatedUser = {
-                userID: response,
-                isFollower: true,
-                dateFollowed: date
-            }
-            TwitterUser.findByIdAndUpdate({_id: user._id}, {$set: updatedUser}, function(err, userDoc){
-                if (err) return cb(err);
-                return cb(null, userDoc);
-            });       
-        } else {
-            return cb(null, user);
-        }
-      })
+        })
+    }))
 }
 
 //TODO: fix so that it's a callback
@@ -146,26 +139,25 @@ exports.findUniqueUsers = function(cb){
     });
 }
 
-//inserts user info into database and returns callback of the updated userDoc
-exports.insertUserInfo = function(users, response, cb){
-    for (i=0; i<response.length; i++){
+//inserts user info into database and returns promise of the updated userDoc
+exports.insertUserInfo = function(response){
+    return Promise.all(response.map(user => {
         var updatedUser = {
-            handle: response[i].screen_name,
-            name: response[i].name,
-            isVerified: response[i].verified,
-            followersCount: response[i].followers_count,
-            friendsCount: response[i].friends_count,
-            isProtected: response[i].protected,
-            accountCreatedDate: response[i].created_at,
-            location: response[i].location,
-            favoritesCount: response[i].favourites_count,
-            statusesCount: response[i].statuses_count
+            handle: user.screen_name,
+            name: user.name,
+            isVerified: user.verified,
+            followersCount: user.followers_count,
+            friendsCount: user.friends_count,
+            isProtected: user.protected,
+            accountCreatedDate: user.created_at,
+            location: user.location,
+            favoritesCount: user.favourites_count,
+            statusesCount: user.statuses_count
         }
-        TwitterUser.findByIdAndUpdate({_id: users[i]._id}, {$set: updatedUser}, {new: true},function(err, userDoc){
-            if (err) return cb(err);
-            return cb(null, userDoc);
-        });
-    }
+        return TwitterUser.findOneAndUpdate({userID: user.id_str}, {$set: updatedUser}).exec().then(userDoc => {
+            return userDoc;
+        })
+    }))
 }
 
 

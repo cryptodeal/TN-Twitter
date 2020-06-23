@@ -3,7 +3,7 @@ require('dotenv').config();
 const db = require('./db');
 const _ = require('lodash');
 const TwitterUser = require('./controllers/TwitterUsers');
-const TwitterUsers = require('./models/TwitterUsers');
+//const TwitterUsers = require('./models/TwitterUsers');
 var whiteListed = ['Craig_Brown','comradecarliv','HeyMaliniK','morbid_elation','aeracharrel'];
 var whiteListedID = []
 var testUnfollowUsers = ['742486603','16317345','1605827928','31196182','367843406','3274656996']
@@ -34,7 +34,7 @@ var client = new Twitter({
     //totalUsers();
 
   //Pulls list of users @TankieNews follows from Twitter API, then updates/adds database records
-    addFriends();
+    //addFriends();
 
   //Pulls list of users that follow @TankieNews from Twitter API, then updates/adds database records
     //addFollowers();
@@ -52,7 +52,7 @@ var client = new Twitter({
     //getFriendData()
 
 ////check users following @TankieNews and push to the following array
-function addFriends(){
+exports.addFriends = function(){
     var params = {screen_name: 'TankieNews', stringify_ids: true};
     client.get('friends/ids', params, function(err, response){
         if(err) throw err;
@@ -67,19 +67,53 @@ function addFriends(){
     });
 }
 
-//check @TankieNews followers and push to the followers array
-function addFollowers(){
+addFriends2 = function(){
     var params = {screen_name: 'TankieNews', stringify_ids: true};
-    client.get('followers/ids', params, function(err, response){
-        if(err) throw err;
-        for (var i = 0; i < response.ids.length; i++){
-            //console.log('checking database for ID #: ' + response.ids[i])
-            TwitterUser.addFollowers(response.ids[i], function(err, user){
-                if (err) throw err;
-                console.log(`${user} updated in database.`)
+    client.get('friends/ids', params)
+        .then(function (userIDs) {
+            TwitterUser.addFriendsPromise(userIDs.ids)
+            .then((results) => {
+                //console.log(results)
+                getUserData(results);
             })
-        }
-    });
+        })
+        .catch(function (error) {
+            throw error;
+        })
+}
+const getFollowerIDs = async () => {
+    var params = {screen_name: 'TankieNews', stringify_ids: true};
+    return client.get('followers/ids', params)
+    .then(userIDs => {
+        return userIDs
+    })
+}
+const getFriendIDs = async () => {
+    var params = {screen_name: 'TankieNews', stringify_ids: true};
+    return client.get('friends/ids', params)
+    .then(userIDs => {
+        return userIDs
+    })
+}
+exports.addUsers = async function(){
+    getFollowerIDs()
+    .then(followerIDs => {
+        return TwitterUser.addFollowers(followerIDs.ids)
+    })
+    .then(updatedFollowers => {
+        //console.log(updatedFollowers)
+        return getFriendIDs()
+    })
+    .then(friendsIDs => {
+        //console.log(friendsIDs)
+        return TwitterUser.addFriends(friendsIDs.ids)
+    })
+    .then(updatedFriends => {
+        console.log(updatedFriends)
+    })
+    .catch(error => {
+        throw error;
+    })
 }
 
 //returns list of all users that @TankieNews follows, but do not follow us back
@@ -134,23 +168,34 @@ function getFollowerData(){
     })
 }
 
-function getFriendData(){
-    TwitterUser.getFriends(function(err, friends){
-        if (err) throw err;
+exports.getFriendsData = function(friends){
         let friendsChunk = _.chunk(friends, 100);
         //console.log(followersChunk)
         for (i=0; i<friendsChunk.length; i++){
             let users = friendsChunk[i].map(friend => friend)
             let userIDs = users.map(user => user.userID)
             let params = {user_id: userIDs.join()};
-            client.post('users/lookup', params, function(err, response){
-                if(err) throw err;
-                //console.log(users)
-                TwitterUser.insertUserInfo(users, response, function(err, userDoc){
-                    if (err) throw err;
-                    console.log(userDoc)
-                })
-            });
+            client.post('users/lookup', params)
+            .then(function (response) {
+                TwitterUser.insertUserInfo(response)
+            })
+            .catch(function (error) {
+                throw error;
+            })
         }
-    })
+}
+const getUserData = async (users) => {
+    let userChunks = _.chunk(users, 100);
+    //console.log(userChunks)
+    return Promise.all(userChunks.map(user => {
+        let ids = user.map(user => user.userID)
+        let params = {user_id: ids.join()};
+        //console.log(params)
+        return client.post('users/lookup', params).then(response => {
+            //console.log(result)
+            return TwitterUser.insertUserInfo(response).then(user => {
+                return user;
+            })
+        })
+    }))
 }
