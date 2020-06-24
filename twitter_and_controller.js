@@ -96,10 +96,6 @@ exports.addUsers = async function(){
         console.log(`made it to cursorStoreFollowers call`)
         return cursorStoreFollowers(followers)
     })
-    .then(results => {
-        console.log(`made it to first getUserData call`)
-        return getUserData(results);
-    })
     .then(() => {
         console.log(`made it to getFriendsIDs call`)
         let params = {screen_name: 'TankieNews', stringify_ids: true};
@@ -109,12 +105,16 @@ exports.addUsers = async function(){
         console.log(`made it to cursorStoreFriends call`)
         return cursorStoreFriends(friends)
     })
-    .then(results => {
-        console.log(`made it to second getUserData call`)
-        return getUserData(results);
+    .then(() => {
+        console.log(`made it to findAllUsers call`)
+        return TwitterUser.findAllUsers();
+    })
+    .then(users => {
+        console.log(`made it to getUserData call`)
+        return getUserData(users);
     })
     .then(() => {
-        console.log(`completed addUsers function`)
+        console.log(`completed addUsers call`)
     })
     .catch(error => {
         throw error;
@@ -160,7 +160,7 @@ const userLookup = async (params) => {
     })
 }
 const getUserData = async (users) => {
-    let userChunks = _.chunk(users[0], 100);
+    let userChunks = _.chunk(users, 100);
     //console.log(userChunks)
     return Promise.all(userChunks.map(user => {
         let ids = user.map(user => user.userID)

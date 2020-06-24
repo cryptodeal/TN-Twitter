@@ -1,4 +1,5 @@
 const { addUsers } = require('./twitter_and_controller');
+const {findNotFollowingBack} = require('./controllers/TwitterUsers')
 //TODO: 
     //1. Implement strategy for refreshing user info in database at regular intervals
     //2. Implement manual whitelisting of users
@@ -19,3 +20,4 @@ const { addUsers } = require('./twitter_and_controller');
 //Gets ids of followers of @TankieNews, stores to database, gets their account info, and stores to database.
 //Then repeats the process for accounts that @TankieNews follows 
 addUsers()
+//findNotFollowingBack().then(users=>{console.log(users)})

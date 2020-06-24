@@ -17,14 +17,6 @@ exports.whitelistUser = function (response){
       })
 }
 
-//returns complete list and count of users in database
-//that @TankieNews follows, but don't follow back
-exports.findNotFollowingBack = function(cb){
-    TwitterUser.find({isFollower: false, isFriend: true}).select('userID').lean().exec(function(err, users){
-        if (err) return cb(err);
-        return cb(null, users);
-    });
-}
 //returns array of all database users that have isFollower: true
 exports.getFollowers = function(cb){
     TwitterUser.find({isFollower: true}).select('userID').lean().exec(function(err, followers) {
@@ -54,14 +46,6 @@ exports.followerCount = function(cb){
         if (err) cb(err);
         return cb(null, count)
         //console.log( "Number of docs: ", count );
-    });
-}
-
-//returns total count of unique users in the database that follow @tankienews
-exports.findUniqueUsers = function(cb){
-    TwitterUser.countDocuments(function(err, count){
-        if (err) cb(err);
-        return cb(null, count);
     });
 }
 
@@ -164,4 +148,19 @@ exports.insertUserInfo = function(response){
     }))
 }
 
+//returns complete list and count of users in database
+//that @TankieNews follows, but don't follow back
+exports.findNotFollowingBack = async function(){
+    return TwitterUser.find({isFollower: false, isFriend: true}).select('userID').lean().exec()
+    .then(users => {
+        return users
+    })
+}
+
+exports.findAllUsers = async function(){
+    return TwitterUser.find({}).select('userID').lean().exec()
+    .then(users => {
+        return users
+    })
+}
 
