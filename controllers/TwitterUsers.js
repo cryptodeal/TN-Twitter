@@ -5,17 +5,13 @@ const Twitter = require('../twitter_and_controller');
 
 //marks users on the whitelist as isWhiteListed in database 
 //TODO: WHITELIST ALL USERS THAT MEET THRESHOLDS LIKE MORE THAN X # OF FOLLOWERS
-exports.whitelistUser = function (response){
-    TwitterUser.exists({ userID: response, isWhitelisted: true }).then(exists => {
-        if (exists){
-            console.log(`User ID # ${response} is already whitelisted in database`)
-        } else {
-            TwitterUser.findOneAndUpdate({userID: response}, {isWhitelisted: true}, {new: true, upsert: true}, function(err, user){
-                if (err) throw err;
-                console.log(`User ID # ${response} updated to be whitelisted: \n${user}`)
-            });
-        }
-      })
+//Currently broken because of the pre hook in the TwitterUser db schema
+exports.whitelistUser = function (users){
+    return Promise.all(users.map(user => {
+        return TwitterUser.findOneAndUpdate({handle: user}, {isWhitelisted: true}).exec().then(user => {
+            return user;
+        })
+    }))
 }
 
 //WORKING FUNCTIONS:

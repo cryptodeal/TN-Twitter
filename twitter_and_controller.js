@@ -14,9 +14,14 @@ var client = new Twitter({
     access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
   });
 
-
 //TODO: Write these functions/helper functions
 
+//function whitelistUsers() should mark all users found in the array
+//as whitelisted in the database
+//Currently broken because of the pre hook in the TwitterUser db schema
+exports.whitelistUsers = async (users) => {
+      return TwitterUser.whitelistUser(users)
+}
 
 //WORKING HELPER FUNCTIONS:
 
