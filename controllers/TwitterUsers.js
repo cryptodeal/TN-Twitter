@@ -5,10 +5,12 @@ const Twitter = require('../twitter_and_controller');
 
 //marks users on the whitelist as isWhiteListed in database 
 //TODO: WHITELIST ALL USERS THAT MEET THRESHOLDS LIKE MORE THAN X # OF FOLLOWERS
-//Currently broken because of the pre hook in the TwitterUser db schema
 exports.whitelistUser = function (users){
     return Promise.all(users.map(user => {
-        return TwitterUser.findOneAndUpdate({handle: user}, {isWhitelisted: true}).exec().then(user => {
+        let updatedUser = {
+            isWhitelisted: true
+        }
+        return TwitterUser.findOneAndUpdate({handle: user}, {$set: updatedUser}).exec().then(user => {
             return user;
         })
     }))
@@ -95,7 +97,7 @@ exports.addFollowers = async function(ids){
 //inserts user info into database and returns promise of the updated userDoc
 exports.insertUserInfo = function(response){
     return Promise.all(response.map(user => {
-        var updatedUser = {
+        let updatedUser = {
             handle: user.screen_name,
             name: user.name,
             isVerified: user.verified,

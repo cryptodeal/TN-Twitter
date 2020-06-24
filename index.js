@@ -1,5 +1,4 @@
-const {addUsers, whitelistUsers} = require('./twitter_and_controller');
-const whiteListed = ['Craig_Brown','comradecarliv','HeyMaliniK','morbid_elation','aeracharrel'];
+const {addUsers} = require('./twitter_and_controller');
 //TODO: 
     //1. Implement strategy for refreshing user info in database at regular intervals
     //2. Implement manual whitelisting of users
@@ -23,4 +22,3 @@ const whiteListed = ['Craig_Brown','comradecarliv','HeyMaliniK','morbid_elation'
 //addUsers()
 
 //TESTING BELOW: 
-    //whitelistUsers(whiteListed).then(users => {console.log(users)})

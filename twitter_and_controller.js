@@ -3,9 +3,6 @@ require('dotenv').config();
 const db = require('./db');
 const _ = require('lodash');
 const TwitterUser = require('./controllers/TwitterUsers');
-var whiteListed = ['Craig_Brown','comradecarliv','HeyMaliniK','morbid_elation','aeracharrel'];
-var whiteListedID = []
-var testUnfollowUsers = ['742486603','16317345','1605827928','31196182','367843406','3274656996']
 
 var client = new Twitter({
     consumer_key: process.env.TWITTER_CONSUMER_KEY,
@@ -19,7 +16,7 @@ var client = new Twitter({
 //function whitelistUsers() should mark all users found in the array
 //as whitelisted in the database
 //Currently broken because of the pre hook in the TwitterUser db schema
-exports.whitelistUsers = async (users) => {
+const whitelistUsers = async (users) => {
       return TwitterUser.whitelistUser(users)
 }
 

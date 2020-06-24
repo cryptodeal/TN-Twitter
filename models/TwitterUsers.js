@@ -24,8 +24,7 @@ const TwitterUser = new Schema ({
 });
 
 TwitterUser.pre(['updateOne', 'findOneAndUpdate'], function(next){
-    //console.log(this._update.$set.isVerified)
-    if (this._update.$set.isVerified == false){
+    if (this._update.$set.isVerified == false || this._update.$set.isWhitelisted == true){
         return next();
     } else {
         this._update.isWhitelisted = true;
