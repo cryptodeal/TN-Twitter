@@ -15,111 +15,8 @@ var client = new Twitter({
     access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
   });
 
-//Functions to-do:
-    //whitelist();
 
-    //unfollow();
-
-    //findVerified();
-
-//Working Functions:
-
-  //Returns count of users that @TankieNews follows
-    //friendCount();
-
-  //Returns count of users that follow @TankieNews
-    //followerCount();
-
-  //Returns count of unique users that are stored in the database
-    //totalUsers();
-
-  //Pulls list of users @TankieNews follows from Twitter API, then updates/adds database records
-    //addFriends();
-
-  //Pulls list of users that follow @TankieNews from Twitter API, then updates/adds database records
-    //addFollowers();
-
-  //Returns list and count of all users that @TankieNews follows, but don't follow back 
-    //disrespect();
-
-  //Returns list of all database documents with isFollower: true
-    //getFollowers();
-
-  //Gets user data from all followers and inserts into the corresponding document in the database
-    //getFollowerData()
-
-  //Gets user data from all friends (that are not followers) and inserts into the corresponding document in the database
-    //getFriendData()
-
-////check users following @TankieNews and push to the following array
-
-const getFollowerIDs = async (params, data) => {
-    return client.get('followers/ids', params)
-    .then(res => {
-        console.log(res)
-        data.push(res.ids);
-        if (res.next_cursor > 0) {
-            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFollowerIDs(params, data);
-        }
-        return data;
-    })
-}
-const getFriendIDs = async (params, data) => {
-    return client.get('friends/ids', params)
-    .then(res => {
-        data.push(res.ids);
-        if (res.next_cursor > 0) {
-            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFriendIDs(params, data);
-        }
-        return data;
-    })
-}
-
-const cursorStoreFollowers = async (followers) => {
-    return Promise.all(followers.map(block => {
-        return TwitterUser.addFollowers(block);
-    }))
-}
-
-const cursorStoreFriends = async (friends) => {
-    return Promise.all(friends.map(block => {
-        return TwitterUser.addFriends(block);
-    }))
-}
-
-exports.addUsers = async function(){
-    let params = {screen_name: 'TankieNews', stringify_ids: true};
-    getFollowerIDs(params, [])
-    .then(followers => {
-        console.log(`made it to cursorStoreFollowers call`)
-        return cursorStoreFollowers(followers)
-    })
-    .then(() => {
-        console.log(`made it to getFriendsIDs call`)
-        let params = {screen_name: 'TankieNews', stringify_ids: true};
-        return getFriendIDs(params, [])
-    })
-    .then(friends => {
-        console.log(`made it to cursorStoreFriends call`)
-        return cursorStoreFriends(friends)
-    })
-    .then(() => {
-        console.log(`made it to findAllUsers call`)
-        return TwitterUser.findAllUsers();
-    })
-    .then(users => {
-        console.log(`made it to getUserData call`)
-        return getUserData(users);
-    })
-    .then(() => {
-        console.log(`completed addUsers call`)
-    })
-    .catch(error => {
-        throw error;
-    })
-}
+//TODO: REWRITE USING PROMISES
 
 //returns list of all users that @TankieNews follows, but do not follow us back
 function disrespect(){
@@ -151,14 +48,52 @@ function totalUsers(){
     })
 }
 
-const userLookup = async (params) => {
-    return client.post('users/lookup', params).then(response => {
-        //console.log(result)
-        return TwitterUser.insertUserInfo(response).then(user => {
-            return user;
-        })
+//WORKING HELPER FUNCTIONS:
+
+//get user IDs of all users following @TankieNews, cursoring through if >5000
+const getFollowerIDs = async (params, data) => {
+    return client.get('followers/ids', params)
+    .then(res => {
+        console.log(res)
+        data.push(res.ids);
+        if (res.next_cursor > 0) {
+            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
+            return getFollowerIDs(params, data);
+        }
+        return data;
     })
 }
+
+//get user IDs of all users @TankieNews follows, cursoring through if >5000
+const getFriendIDs = async (params, data) => {
+    return client.get('friends/ids', params)
+    .then(res => {
+        data.push(res.ids);
+        if (res.next_cursor > 0) {
+            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
+            return getFriendIDs(params, data);
+        }
+        return data;
+    })
+}
+
+//stores all user IDs of followers to database along with isFollowed: true, and dateFollowed: current date/time
+const cursorStoreFollowers = async (followers) => {
+    return Promise.all(followers.map(block => {
+        return TwitterUser.addFollowers(block);
+    }))
+}
+
+//stores all user IDs of friends to database along with isFriend: true, and dateFriended: current date/time
+const cursorStoreFriends = async (friends) => {
+    return Promise.all(friends.map(block => {
+        return TwitterUser.addFriends(block);
+    }))
+}
+
+//Passed an array of all users, breaks that array into arrays with a maximum of 100 users
+//creates a promise for each array of 100 users and then calls userLookup(), which returns a promise
+//that is resolved when Twitter API sends user data back.
 const getUserData = async (users) => {
     let userChunks = _.chunk(users, 100);
     //console.log(userChunks)
@@ -168,4 +103,50 @@ const getUserData = async (users) => {
         //console.log(params)
         return userLookup(params)
     }))
+}
+
+//Returns a promise that is for array of user data from Twitter API
+//that is submitted to insertUserInfo, which stores data to user Doc. in database
+const userLookup = async (params) => {
+    return client.post('users/lookup', params).then(response => {
+        return TwitterUser.insertUserInfo(response).then(users => {
+            return users;
+        })
+    })
+}
+
+//WORKING EXPORTED FUNCTIONS
+
+//Chains together promises to get and store all friends/followers to database
+//requests user data for all from Twitter API and stores to database
+exports.addUsers = async function(){
+    let params = {screen_name: 'TankieNews', stringify_ids: true};
+    getFollowerIDs(params, [])
+    .then(followers => {
+        console.log(`made it to cursorStoreFollowers call`)
+        return cursorStoreFollowers(followers)
+    })
+    .then(() => {
+        console.log(`made it to getFriendsIDs call`)
+        let params = {screen_name: 'TankieNews', stringify_ids: true};
+        return getFriendIDs(params, [])
+    })
+    .then(friends => {
+        console.log(`made it to cursorStoreFriends call`)
+        return cursorStoreFriends(friends)
+    })
+    .then(() => {
+        console.log(`made it to findAllUsers call`)
+        return TwitterUser.findAllUsers();
+    })
+    .then(users => {
+        console.log(`made it to getUserData call`)
+        return getUserData(users);
+    })
+    .then(() => {
+        console.log(`completed addUsers call`)
+    })
+    .catch(error => {
+        throw error;
+    })
 }
