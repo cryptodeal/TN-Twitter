@@ -3,7 +3,6 @@ require('dotenv').config();
 const db = require('./db');
 const _ = require('lodash');
 const TwitterUser = require('./controllers/TwitterUsers');
-//const TwitterUsers = require('./models/TwitterUsers');
 var whiteListed = ['Craig_Brown','comradecarliv','HeyMaliniK','morbid_elation','aeracharrel'];
 var whiteListedID = []
 var testUnfollowUsers = ['742486603','16317345','1605827928','31196182','367843406','3274656996']
@@ -16,39 +15,40 @@ var client = new Twitter({
   });
 
 
-//TODO: REWRITE USING PROMISES
+//TODO: Write these functions/helper functions
 
-//returns list of all users that @TankieNews follows, but do not follow us back
-function disrespect(){
-    TwitterUser.findNotFollowingBack(function(err, users){
-        if (err) throw err;
-        console.log(users)
-        console.log(users.length)
-    });
-}
-
-function friendCount(){
-    TwitterUser.friendCount(function(err, count){
-        if (err) throw err;
-        console.log(count)
-    })
-}
-
-function followerCount(){
-    TwitterUser.followerCount(function(err, count){
-        if (err) throw err;
-        console.log(count)
-    })
-}
-
-function totalUsers(){
-    TwitterUser.findUniqueUsers(function(err, count){
-        if (err) throw err;
-        console.log(count)
-    })
-}
 
 //WORKING HELPER FUNCTIONS:
+
+//returns array of all database users that have isFriend: true
+const getSavedFriends = async () => {
+    return TwitterUser.getFriends()
+}
+
+//returns array of all database users that have isFriend: true
+const getSavedFollowers = async () => {
+    return TwitterUser.getFollowers()
+}
+
+//returns total count of users in database marked isFriend
+const friendCount = async () => {
+    return TwitterUser.friendCount()
+}
+
+//returns total count of users in database marked isFollower
+const followerCount = async () => {
+    return TwitterUser.followerCount()
+}
+
+//returns list of all users leaned down to userID
+const getAllUsers = async () => {
+    return TwitterUser.findAllUsers()
+}
+
+//returns list of all users that @TankieNews follows, but do not follow us back
+const disrespect = async () => {
+    return TwitterUser.findNotFollowingBack();
+}
 
 //get user IDs of all users following @TankieNews, cursoring through if >5000
 const getFollowerIDs = async (params, data) => {
@@ -137,7 +137,7 @@ exports.addUsers = async function(){
     })
     .then(() => {
         console.log(`made it to findAllUsers call`)
-        return TwitterUser.findAllUsers();
+        return getAllUsers();
     })
     .then(users => {
         console.log(`made it to getUserData call`)

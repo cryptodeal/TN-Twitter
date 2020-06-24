@@ -3,7 +3,8 @@ const Twitter = require('../twitter_and_controller');
 
 //TODO FUNCTIONS: ADD FUNCTIONALITY AND PROMISIFY EACH
 
-//marks users on the whitelist as isWhiteListed in database
+//marks users on the whitelist as isWhiteListed in database 
+//TODO: WHITELIST ALL USERS THAT MEET THRESHOLDS LIKE MORE THAN X # OF FOLLOWERS
 exports.whitelistUser = function (response){
     TwitterUser.exists({ userID: response, isWhitelisted: true }).then(exists => {
         if (exists){
@@ -17,39 +18,7 @@ exports.whitelistUser = function (response){
       })
 }
 
-//returns array of all database users that have isFollower: true
-exports.getFollowers = function(cb){
-    TwitterUser.find({isFollower: true}).select('userID').lean().exec(function(err, followers) {
-        if (err) return cb(err);
-        return cb(null, followers);
-  });
-}
-//returns array of all database users that have isFriend: true
-exports.getFriends = function(cb){
-    TwitterUser.find({isFriend: true}).select('userID').lean().exec(function(err, friends) {
-        if (err) return cb(err);
-        return cb(null, friends);
-  });
-}
-//returns count of users that @tankienews follows
-exports.friendCount = function(cb){
-    TwitterUser.countDocuments({isFriend: true}, function(err, count){
-        if (err) cb(err);
-        return cb(null, count)
-        //console.log( "Number of docs: ", count );
-    });
-}
-
-//returns count of users that follow @tankienews
-exports.followerCount = function(cb){
-    TwitterUser.countDocuments({isFollower: true}, function(err, count){
-        if (err) cb(err);
-        return cb(null, count)
-        //console.log( "Number of docs: ", count );
-    });
-}
-
-//FINISHED FUNCTIONS:
+//WORKING FUNCTIONS:
 
 //adds userID to database for all users @TankieNews follows
 //updates existing userID's to include isFriend: true (and timestamp if needed)
@@ -157,6 +126,7 @@ exports.findNotFollowingBack = async function(){
     })
 }
 
+//returns all users in database leaned down to userID (and _id)
 exports.findAllUsers = async function(){
     return TwitterUser.find({}).select('userID').lean().exec()
     .then(users => {
@@ -164,3 +134,30 @@ exports.findAllUsers = async function(){
     })
 }
 
+//returns count of users that @tankienews follows
+exports.friendCount = async () => {
+    return TwitterUser.countDocuments({isFriend: true}).exec().then(count => {
+        return count;
+    })
+}
+
+//returns count of users that follow @tankienews
+exports.followerCount = async () => {
+    return TwitterUser.countDocuments({isFollower: true}).exec().then(count => {
+        return count;
+    })
+}
+
+//returns array of all database users that have isFollower: true
+exports.getFollowers = async () => {
+    return TwitterUser.find({isFollower: true}).exec().then(followers => {
+        return followers;
+    })
+}
+
+//returns array of all database users that have isFriend: true
+exports.getFriends = async () => {
+    return TwitterUser.find({isFriend: true}).exec().then(friends => {
+        return friends;
+    })
+}
