@@ -2,7 +2,31 @@ const TwitterUser = require('../models/TwitterUsers');
 const Twitter = require('../twitter_and_controller');
 
 //TODO FUNCTIONS: ADD FUNCTIONALITY AND PROMISIFY EACH
+exports.findUnfriendable = async () => {
+    return TwitterUser.find({isFollower: false, isFriend: true, isWhitelisted: false, followersCount: {$lte: 25}}).sort('followersCount').exec().then(users => {
+        return users;
+    })
+}
 
+exports.findNotExist = async () => {
+    return TwitterUser.find({isVerified: true, isWhitelisted: false}).exec().then(result => {
+        return result;
+    })
+}
+
+//Returns promise that updates the corresponding user in database
+//sets isFriend
+exports.updateUnfriended = async (response) => {
+    let date = new Date();
+    let updatedUser = {
+        isFriend: false,
+        dateUnfriended: date,
+        followersCount: response.followers_count,
+    }
+    return TwitterUser.findOneAndUpdate({userID: response.id_str}, {$set: updatedUser}, {new: true}).exec().then(user => {
+        return user;
+    })
+}
 //marks users on the whitelist as isWhiteListed in database 
 //TODO: WHITELIST ALL USERS THAT MEET THRESHOLDS LIKE MORE THAN X # OF FOLLOWERS
 exports.whitelistUser = function (users){
@@ -10,10 +34,12 @@ exports.whitelistUser = function (users){
         let updatedUser = {
             isWhitelisted: true
         }
-        return TwitterUser.findOneAndUpdate({handle: user}, {$set: updatedUser}).exec().then(user => {
+        return TwitterUser.findOneAndUpdate({handle: user}, {$set: updatedUser}, {new: true}).exec().then(user => {
             return user;
         })
-    }))
+    })).catch(err => {
+        throw err
+    })
 }
 
 //WORKING FUNCTIONS:
@@ -38,7 +64,7 @@ exports.addFriends = async function(ids){
                     isFriend: true,
                     dateFriended: date
                 }
-                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
                     return user;
                 })
             } else if(result.isFriend == true && !result.dateFriended){
@@ -46,14 +72,16 @@ exports.addFriends = async function(ids){
                     isFriend: true,
                     dateFriended: date
                 }
-                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
                     return user;
                 })
             } else {
                 return result;
             }
         })
-    }))
+    })).catch(err => {
+        throw err
+    })
 }
 
 //adds userID to database for all users following @TankieNews
@@ -76,7 +104,7 @@ exports.addFollowers = async function(ids){
                     isFollower: true,
                     dateFollowed: date
                 }
-                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
                     return user;
                 })
             } else if(result.isFollower == true && !result.dateFollowed){
@@ -84,14 +112,16 @@ exports.addFollowers = async function(ids){
                     isFollower: true,
                     dateFollowed: date
                 }
-                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}).exec().then(user => {
+                return TwitterUser.findByIdAndUpdate({_id: result._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
                     return user;
                 })
             } else {
                 return result;
             }
         })
-    }))
+    })).catch(err => {
+        throw err
+    })
 }
 
 //inserts user info into database and returns promise of the updated userDoc
@@ -103,16 +133,19 @@ exports.insertUserInfo = function(response){
             isVerified: user.verified,
             followersCount: user.followers_count,
             friendsCount: user.friends_count,
+            description: user.description,
             isProtected: user.protected,
             accountCreatedDate: user.created_at,
             location: user.location,
             favoritesCount: user.favourites_count,
             statusesCount: user.statuses_count
         }
-        return TwitterUser.findOneAndUpdate({userID: user.id_str}, {$set: updatedUser}).exec().then(userDoc => {
+        return TwitterUser.findOneAndUpdate({userID: user.id_str}, {$set: updatedUser}, {new: true}).exec().then(userDoc => {
             return userDoc;
         })
-    }))
+    })).catch(err => {
+        throw err
+    })
 }
 
 //returns complete list and count of users in database

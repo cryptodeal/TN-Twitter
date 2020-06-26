@@ -1,4 +1,4 @@
-var Twitter = require('twitter');
+const Twitter = require('twitter-lite');
 require('dotenv').config();
 const db = require('./db');
 const _ = require('lodash');
@@ -11,16 +11,29 @@ var client = new Twitter({
     access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
   });
 
-//TODO: Write these functions/helper functions
+//TODO: Rewrite functions using newer twitter-lite
+
+const unfriendUser = async (users) => {
+    let params = {id: users[0].userID}
+    return client.post('friendships/destroy', params)
+    .then(res => {
+        return TwitterUser.updateUnfriended(res)
+    })
+    .catch(console.error)
+}
 
 //function whitelistUsers() should mark all users found in the array
 //as whitelisted in the database
-//Currently broken because of the pre hook in the TwitterUser db schema
 const whitelistUsers = async (users) => {
       return TwitterUser.whitelistUser(users)
 }
 
 //WORKING HELPER FUNCTIONS:
+
+//currently manually gets  alist of users matching preset specifications
+findUnfriendableUsers = async () => {
+    return TwitterUser.findUnfriendable()
+}
 
 //returns array of all database users that have isFriend: true
 const getSavedFriends = async () => {
@@ -56,14 +69,14 @@ const disrespect = async () => {
 const getFollowerIDs = async (params, data) => {
     return client.get('followers/ids', params)
     .then(res => {
-        console.log(res)
         data.push(res.ids);
         if (res.next_cursor > 0) {
             let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFollowerIDs(params, data);
+            return getFollowerIDsLite(params, data);
         }
         return data;
     })
+    .catch(console.error)
 }
 
 //get user IDs of all users @TankieNews follows, cursoring through if >5000
@@ -73,10 +86,11 @@ const getFriendIDs = async (params, data) => {
         data.push(res.ids);
         if (res.next_cursor > 0) {
             let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFriendIDs(params, data);
+            return getFriendIDsLite(params, data);
         }
         return data;
     })
+    .catch(console.error)
 }
 
 //stores all user IDs of followers to database along with isFollowed: true, and dateFollowed: current date/time
@@ -84,6 +98,7 @@ const cursorStoreFollowers = async (followers) => {
     return Promise.all(followers.map(block => {
         return TwitterUser.addFollowers(block);
     }))
+    .catch(console.error)
 }
 
 //stores all user IDs of friends to database along with isFriend: true, and dateFriended: current date/time
@@ -91,6 +106,7 @@ const cursorStoreFriends = async (friends) => {
     return Promise.all(friends.map(block => {
         return TwitterUser.addFriends(block);
     }))
+    .catch(console.error)
 }
 
 //Passed an array of all users, breaks that array into arrays with a maximum of 100 users
@@ -104,17 +120,19 @@ const getUserData = async (users) => {
         let params = {user_id: ids.join()};
         //console.log(params)
         return userLookup(params)
-    }))
+    })).catch(err => {
+        throw err
+    })
 }
 
 //Returns a promise that is for array of user data from Twitter API
 //that is submitted to insertUserInfo, which stores data to user Doc. in database
 const userLookup = async (params) => {
-    return client.post('users/lookup', params).then(response => {
-        return TwitterUser.insertUserInfo(response).then(users => {
-            return users;
-        })
+    return client.post('users/lookup', params)
+    .then(res => {
+        return TwitterUser.insertUserInfo(res)
     })
+    .catch(console.error)
 }
 
 //WORKING EXPORTED FUNCTIONS
@@ -139,16 +157,30 @@ exports.addUsers = async function(){
     })
     .then(() => {
         console.log(`made it to findAllUsers call`)
-        return getAllUsers();
+        return getAllUsers()
     })
     .then(users => {
         console.log(`made it to getUserData call`)
-        return getUserData(users);
+        return getUserData(users)
     })
     .then(() => {
-        console.log(`completed addUsers call`)
+        console.log(`made it to findUnfriendableUsers call`)
+        return findUnfriendableUsers()
     })
-    .catch(error => {
-        throw error;
+    .then(users => {
+        console.log(`made it to unfriendUser call`)
+        if(users[0] == null || users[0] == undefined){
+            return console.log(`no more users matching unfriend criteria`)
+        } else {
+            console.log(users[0])
+            //return unfriendUser(users)
+        }
     })
+    .then(unfriended => {
+        if (unfriended !== undefined){
+            console.log(`User unfriended and updated in database:\n${unfriended}`)
+        }
+        console.log(`finished the function!!!\n`)
+    })
+    .catch(console.error)
 }
