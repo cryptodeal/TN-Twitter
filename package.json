@@ -1,5 +1,5 @@
 {
-  "name": "TN-Twitter",
+  "name": "tn-twitter",
   "version": "0.1.5",
   "description": "@TankieNews account automated management for following and unfollowing users from our account.",
   "main": "index.js",
