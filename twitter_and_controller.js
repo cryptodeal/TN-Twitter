@@ -13,6 +13,7 @@ var client = new Twitter({
 
 //TODO: Rewrite functions using newer twitter-lite
 
+//unfollows the specified user
 const unfriendUser = async (users) => {
     let params = {id: users[0].userID}
     return client.post('friendships/destroy', params)
@@ -71,8 +72,8 @@ const getFollowerIDs = async (params, data) => {
     .then(res => {
         data.push(res.ids);
         if (res.next_cursor > 0) {
-            let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFollowerIDsLite(params, data);
+            let params = {screen_name: 'Joshua4Congress', stringify_ids: true, cursor: res.next_cursor_str}
+            return getFollowerIDs(params, data);
         }
         return data;
     })
@@ -86,11 +87,16 @@ const getFriendIDs = async (params, data) => {
         data.push(res.ids);
         if (res.next_cursor > 0) {
             let params = {screen_name: 'TankieNews', stringify_ids: true, cursor: res.next_cursor_str}
-            return getFriendIDsLite(params, data);
+            return getFriendIDs(params, data);
         }
         return data;
     })
     .catch(console.error)
+}
+
+exports.testFriend = async () => {
+    let params = {screen_name: 'TankieNews', stringify_ids: true}
+    return getFollowerIDs(params, [])
 }
 
 //stores all user IDs of followers to database along with isFollowed: true, and dateFollowed: current date/time
@@ -104,20 +110,26 @@ const cursorStoreFollowers = async (followers) => {
 //stores all user IDs of friends to database along with isFriend: true, and dateFriended: current date/time
 const cursorStoreFriends = async (friends) => {
     return Promise.all(friends.map(block => {
-        return TwitterUser.addFriends(block);
+        return TwitterUser.addFriends(block)
     }))
     .catch(console.error)
 }
 
+const updateFriends = async (friendIDs) => {
+    return TwitterUser.removeFriends(friendIDs)
+}
+
+const updateFollowers = async (followerIDs) => {
+    return TwitterUser.removeFollowers(followerIDs)
+}
 //Passed an array of all users, breaks that array into arrays with a maximum of 100 users
 //creates a promise for each array of 100 users and then calls userLookup(), which returns a promise
 //that is resolved when Twitter API sends user data back.
 const getUserData = async (users) => {
     let userChunks = _.chunk(users, 100);
     //console.log(userChunks)
-    return Promise.all(userChunks.map(user => {
-        let ids = user.map(user => user.userID)
-        let params = {user_id: ids.join()};
+    return Promise.all(userChunks.map(chunk => {
+        let params = {user_id: chunk.join()};
         //console.log(params)
         return userLookup(params)
     })).catch(err => {
@@ -140,11 +152,21 @@ const userLookup = async (params) => {
 //Chains together promises to get and store all friends/followers to database
 //requests user data for all from Twitter API and stores to database
 exports.addUsers = async function(){
+    let followerIDs
+    let friendIDs
     let params = {screen_name: 'TankieNews', stringify_ids: true};
-    getFollowerIDs(params, [])
+    console.log('made it to getFollowerIDs call')
+    return getFollowerIDs(params, [])
     .then(followers => {
         console.log(`made it to cursorStoreFollowers call`)
+        followerIDs = followers.flat(1)
+        //console.log(followerIDs)
         return cursorStoreFollowers(followers)
+    })
+    .then(() => {
+        //console.log(followerIDs)
+        console.log(`made it to updateFollowers call`)
+        return updateFollowers(followerIDs)
     })
     .then(() => {
         console.log(`made it to getFriendsIDs call`)
@@ -153,13 +175,15 @@ exports.addUsers = async function(){
     })
     .then(friends => {
         console.log(`made it to cursorStoreFriends call`)
+        friendIDs = friends.flat(1)
         return cursorStoreFriends(friends)
     })
     .then(() => {
-        console.log(`made it to findAllUsers call`)
-        return getAllUsers()
+        console.log(`made it to updateFriends call`)
+        return updateFriends(friendIDs)
     })
-    .then(users => {
+    .then(() => {
+        let users = _.union(followerIDs, friendIDs)
         console.log(`made it to getUserData call`)
         return getUserData(users)
     })
@@ -173,14 +197,14 @@ exports.addUsers = async function(){
             return console.log(`no more users matching unfriend criteria`)
         } else {
             console.log(users[0])
-            //return unfriendUser(users)
+            return unfriendUser(users)
         }
     })
     .then(unfriended => {
         if (unfriended !== undefined){
             console.log(`User unfriended and updated in database:\n${unfriended}`)
         }
-        console.log(`finished the function!!!\n`)
+        console.log(`finished the function!!!\n`)        
     })
     .catch(console.error)
 }

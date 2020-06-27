@@ -1,4 +1,4 @@
-const {addUsers} = require('./twitter_and_controller');
+const {addUsers, testFriend, updateFriends} = require('./twitter_and_controller');
 
 //TODO: 
     //1. Implement strategy for refreshing user info in database at regular intervals
@@ -25,4 +25,8 @@ addUsers()
 //setInterval(addUsers, 20000)
 
 //TESTING BELOW: 
-
+//getFriendsAndFollowers().then(merged => {console.log(merged)})
+//let params = {screen_name: 'TankieNews', stringify_ids: true};
+//getFollowerIDs(params, []).then(users => {console.log(users)})
+//testFriend().then(res => {console.log(res)})
+//updateFriends().then(res => {console.log(res)})

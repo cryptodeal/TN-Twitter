@@ -27,6 +27,47 @@ exports.updateUnfriended = async (response) => {
         return user;
     })
 }
+
+//mark users isFriend: false in database if they're not included in the getFriends Data
+exports.removeFriends = async (ids) => {
+    let date = new Date();
+    return TwitterUser.find({isFriend: true, userID: {$nin: ids}}).exec().then(users => {
+        if(!users.length){
+            return console.log(`no changes in friends that need to be udpdated!\n`)
+        }
+        return Promise.all(users.map(res => {
+            let updatedUser = {
+                isFriend: false,
+                dateUnfriended: date
+            }
+            return TwitterUser.findByIdAndUpdate({_id: res._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
+                return user;
+            })
+        }))
+    })
+}
+
+//mark users isFriend: false in database if they're not included in the getFriends Data
+exports.removeFollowers = async (ids) => {
+    let date = new Date();
+    //console.log(ids)
+    return TwitterUser.find({isFollower: true, userID: {$nin: ids}}).exec().then(users => {
+
+        if(!users.length){
+            return console.log(`no changes in followers that need to be udpdated!\n`)
+        }
+        return Promise.all(users.map(res => {
+            let updatedUser = {
+                isFollower: false,
+                dateUnfollowed: date
+            }
+            return TwitterUser.findByIdAndUpdate({_id: res._id}, {$set: updatedUser}, {new: true}).exec().then(user => {
+                return user;
+            })
+        }))
+    })
+}
+
 //marks users on the whitelist as isWhiteListed in database 
 //TODO: WHITELIST ALL USERS THAT MEET THRESHOLDS LIKE MORE THAN X # OF FOLLOWERS
 exports.whitelistUser = function (users){
@@ -47,6 +88,7 @@ exports.whitelistUser = function (users){
 //adds userID to database for all users @TankieNews follows
 //updates existing userID's to include isFriend: true (and timestamp if needed)
 exports.addFriends = async function(ids){
+    let allFriends = await TwitterUser.find({isFriend: true})
     let date = new Date();
     return Promise.all(ids.map(id => {
         return TwitterUser.findOne({userID: id}).exec().then(result => {
@@ -165,6 +207,7 @@ exports.findAllUsers = async function(){
     })
 }
 
+
 //returns count of users that @tankienews follows
 exports.friendCount = async () => {
     return TwitterUser.countDocuments({isFriend: true}).exec().then(count => {
@@ -181,14 +224,14 @@ exports.followerCount = async () => {
 
 //returns array of all database users that have isFollower: true
 exports.getFollowers = async () => {
-    return TwitterUser.find({isFollower: true}).exec().then(followers => {
+    return TwitterUser.find({isFollower: true}).select('userID').lean().exec().then(followers => {
         return followers;
     })
 }
 
 //returns array of all database users that have isFriend: true
 exports.getFriends = async () => {
-    return TwitterUser.find({isFriend: true}).exec().then(friends => {
+    return TwitterUser.find({isFriend: true}).select('userID').lean().exec().then(friends => {
         return friends;
     })
 }

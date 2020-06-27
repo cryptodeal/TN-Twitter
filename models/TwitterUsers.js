@@ -30,9 +30,9 @@ TwitterUser.pre(['updateOne', 'findOneAndUpdate'], function(next){
     if (this._update.$set.isVerified == true){
         this._update.$set.isWhitelisted = true;
         return next();
-    } else {
-        return next();
     }
+    return next();
+    
 });
 
 module.exports = mongoose.model('TwitterUser', TwitterUser)
